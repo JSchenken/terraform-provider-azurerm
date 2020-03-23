@@ -307,6 +307,10 @@ func resourceArmServiceFabricCluster() *schema.Resource {
 							MaxItems: 1,
 							Elem: &schema.Resource{
 								Schema: map[string]*schema.Schema{
+									"max_percent_delta_unhealthy_applications": {
+										Type:     schema.TypeInt,
+										Optional: true,
+									},
 									"max_percent_delta_unhealthy_nodes": {
 										Type:     schema.TypeInt,
 										Optional: true,
@@ -315,15 +319,15 @@ func resourceArmServiceFabricCluster() *schema.Resource {
 										Type:     schema.TypeInt,
 										Optional: true,
 									},
-									"max_percent_delta_unhealthy_applications": {
-										Type:     schema.TypeInt,
-										Optional: true,
-									},
-									"application_delta_health_policies": {
+									"application_delta_health_policy": {
 										Type:     schema.TypeList,
 										Optional: true,
 										Elem: &schema.Resource{
 											Schema: map[string]*schema.Schema{
+												"application_type": {
+													Type:     schema.TypeString,
+													Required: true,
+												},
 												"default_service_type_delta_health_policy": {
 													Type:     schema.TypeList,
 													Optional: true,
@@ -959,6 +963,70 @@ func flattenServiceFabricClusterClientCertificateThumbprints(input *[]servicefab
 	return results
 }
 
+func expandServiceFabricClusterUpgradeDescriptionDeltaHealthPolicy(input []interface{}) *servicefabric.ClusterUpgradeDeltaHealthPolicy {
+	if len(input) == 0 {
+		return nil
+	}
+
+	v := input[0].(map[string]interface{})
+
+	maxPercentDeltaUnhealthyNodes := int32(v["max_percent_delta_unhealthy_nodes"].(int))
+	maxPercentUpgradeDomainDeltaUnhealthyNodes := int32(v["max_percent_upgrade_domain_delta_unhealthy_nodes"].(int))
+	maxPercentDeltaUnhealthyApplications := int32(v["max_percent_delta_unhealthy_applications"].(int))
+
+	deltaHealthPolicy := servicefabric.ClusterUpgradeDeltaHealthPolicy{
+		MaxPercentDeltaUnhealthyNodes:              &maxPercentDeltaUnhealthyNodes,
+		MaxPercentUpgradeDomainDeltaUnhealthyNodes: &maxPercentUpgradeDomainDeltaUnhealthyNodes,
+		MaxPercentDeltaUnhealthyApplications:       &maxPercentDeltaUnhealthyApplications,
+	}
+
+	if applicationDeltaHealthPoliciesRaw := v["application_delta_health_policy"]; applicationDeltaHealthPoliciesRaw != nil {
+		applicationDeltaHealthPolicies := make(map[string]*servicefabric.ApplicationDeltaHealthPolicy)
+
+		applicationDeltaHealthPoliciesArray := applicationDeltaHealthPoliciesRaw.([]interface{})
+
+		for _, value := range applicationDeltaHealthPoliciesArray {
+			appDeltaHealthPolicy := value.(map[string]interface{})
+
+			applicationType := appDeltaHealthPolicy["application_type"].(string)
+
+			if defaultServiceTypeDeltaHealthPolicyRaw := appDeltaHealthPolicy["default_service_type_delta_health_policy"]; defaultServiceTypeDeltaHealthPolicyRaw != nil {
+				defaultServiceTypeDeltaHealthPolicy := defaultServiceTypeDeltaHealthPolicyRaw.([]interface{})[0].(map[string]interface{})
+
+				maxPercentDeltaUnhealthyServices := int32(defaultServiceTypeDeltaHealthPolicy["max_percent_delta_unhealthy_services"].(int))
+
+				applicationDeltaHealthPolicies[applicationType] = &servicefabric.ApplicationDeltaHealthPolicy{
+					DefaultServiceTypeDeltaHealthPolicy: &servicefabric.ServiceTypeDeltaHealthPolicy{
+						MaxPercentDeltaUnhealthyServices: &maxPercentDeltaUnhealthyServices,
+					},
+				}
+			}
+		}
+
+		deltaHealthPolicy.ApplicationDeltaHealthPolicies = applicationDeltaHealthPolicies
+	}
+
+	return &deltaHealthPolicy
+}
+
+func expandServiceFabricClusterUpgradeDescriptionHealthPolicy(input []interface{}) *servicefabric.ClusterHealthPolicy {
+	if len(input) == 0 {
+		return nil
+	}
+
+	v := input[0].(map[string]interface{})
+
+	maxPercentUnhealthyApplications := int32(v["max_percent_unhealthy_applications"].(int))
+	maxPercentUnhealthyNodes := int32(v["max_percent_unhealthy_nodes"].(int))
+
+	healthPolicy := servicefabric.ClusterHealthPolicy{
+		MaxPercentUnhealthyApplications: &maxPercentUnhealthyApplications,
+		MaxPercentUnhealthyNodes:        &maxPercentUnhealthyNodes,
+	}
+
+	return &healthPolicy
+}
+
 func expandServiceFabricClusterUpgradeDescription(input []interface{}) *servicefabric.ClusterUpgradePolicy {
 	if len(input) == 0 {
 		return nil
@@ -974,22 +1042,6 @@ func expandServiceFabricClusterUpgradeDescription(input []interface{}) *servicef
 	upgradeReplicaSetCheckTimeout := v["upgrade_replica_set_check_timeout"].(string)
 	upgradeTimeout := v["upgrade_timeout"].(string)
 
-	healthPolicy := servicefabric.ClusterHealthPolicy{}
-
-	if healthPolicyRaw := v["health_policy"]; v != nil {
-		healthPolicies := healthPolicyRaw.([]interface{})
-
-		for _, policy := range healthPolicies {
-			policyDetails := policy.(map[string]interface{})
-
-			maxPercentUnhealthyApplications := int32(policyDetails["max_percent_unhealthy_applications"].(int))
-			maxPercentUnhealthyNodes := int32(policyDetails["max_percent_unhealthy_nodes"].(int))
-
-			healthPolicy.MaxPercentUnhealthyApplications = &maxPercentUnhealthyApplications
-			healthPolicy.MaxPercentUnhealthyNodes = &maxPercentUnhealthyNodes
-		}
-	}
-
 	policy := servicefabric.ClusterUpgradePolicy{
 		ForceRestart:                  utils.Bool(forceRestart),
 		HealthCheckRetryTimeout:       utils.String((healthCheckRetryTimeout)),
@@ -998,7 +1050,18 @@ func expandServiceFabricClusterUpgradeDescription(input []interface{}) *servicef
 		UpgradeDomainTimeout:          utils.String((upgradeDomainTimeout)),
 		UpgradeReplicaSetCheckTimeout: utils.String((upgradeReplicaSetCheckTimeout)),
 		UpgradeTimeout:                utils.String((upgradeTimeout)),
-		HealthPolicy:                  &healthPolicy,
+	}
+
+	if healthPolicyRaw := v["health_policy"]; healthPolicyRaw != nil {
+		healthPolicies := healthPolicyRaw.([]interface{})
+
+		policy.HealthPolicy = expandServiceFabricClusterUpgradeDescriptionHealthPolicy(healthPolicies)
+	}
+
+	if deltaHealthPolicyRaw := v["delta_health_policy"]; deltaHealthPolicyRaw != nil {
+		deltaHealthPolicies := deltaHealthPolicyRaw.([]interface{})
+
+		policy.DeltaHealthPolicy = expandServiceFabricClusterUpgradeDescriptionDeltaHealthPolicy(deltaHealthPolicies)
 	}
 
 	return &policy
@@ -1052,6 +1115,44 @@ func flattenServiceFabricClusterUpgradeDescription(input *servicefabric.ClusterU
 			}
 
 			output["health_policy"] = []interface{}{policy}
+		}
+
+		if deltaHealthPolicy := v.DeltaHealthPolicy; deltaHealthPolicy != nil {
+			deltaPolicy := make(map[string]interface{})
+
+			if deltaHealthPolicy.MaxPercentDeltaUnhealthyApplications != nil {
+				deltaPolicy["max_percent_delta_unhealthy_applications"] = deltaHealthPolicy.MaxPercentDeltaUnhealthyApplications
+			}
+
+			if deltaHealthPolicy.MaxPercentDeltaUnhealthyNodes != nil {
+				deltaPolicy["max_percent_delta_unhealthy_nodes"] = deltaHealthPolicy.MaxPercentDeltaUnhealthyNodes
+			}
+
+			if deltaHealthPolicy.MaxPercentUpgradeDomainDeltaUnhealthyNodes != nil {
+				deltaPolicy["max_percent_upgrade_domain_delta_unhealthy_nodes"] = deltaHealthPolicy.MaxPercentUpgradeDomainDeltaUnhealthyNodes
+			}
+
+			applicationDeltaHealthPoliciesResults := make([]map[string]interface{}, 0)
+			if applicationDeltaHealthPolicies := deltaHealthPolicy.ApplicationDeltaHealthPolicies; applicationDeltaHealthPolicies != nil {
+				for k, v := range applicationDeltaHealthPolicies {
+					output := make(map[string]interface{})
+
+					output["application_type"] = k
+
+					if v.DefaultServiceTypeDeltaHealthPolicy != nil {
+						outputDefaultServiceTypeDeltaHealthPolicy := make(map[string]interface{})
+
+						outputDefaultServiceTypeDeltaHealthPolicy["max_percent_delta_unhealthy_services"] = v.DefaultServiceTypeDeltaHealthPolicy.MaxPercentDeltaUnhealthyServices
+						output["default_service_type_delta_health_policy"] = []interface{}{outputDefaultServiceTypeDeltaHealthPolicy}
+					}
+
+					applicationDeltaHealthPoliciesResults = append(applicationDeltaHealthPoliciesResults, output)
+				}
+			}
+
+			deltaPolicy["application_delta_health_policy"] = applicationDeltaHealthPoliciesResults
+
+			output["delta_health_policy"] = []interface{}{deltaPolicy}
 		}
 	}
 

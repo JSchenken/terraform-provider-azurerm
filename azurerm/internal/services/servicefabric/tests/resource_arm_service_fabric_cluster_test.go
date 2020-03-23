@@ -512,6 +512,17 @@ func TestAccAzureRMServiceFabricCluster_clusterUpgradeDescription(t *testing.T) 
 					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.upgrade_domain_timeout", "00:00:20"),
 					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.upgrade_replica_set_check_timeout", "00:00:10"),
 					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.upgrade_timeout", "00:00:40"),
+					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.health_policy.#", "1"),
+					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.health_policy.0.max_percent_unhealthy_applications", "40"),
+					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.health_policy.0.max_percent_unhealthy_nodes", "5"),
+					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.#", "1"),
+					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.max_percent_delta_unhealthy_applications", "20"),
+					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.max_percent_delta_unhealthy_nodes", "40"),
+					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.max_percent_upgrade_domain_delta_unhealthy_nodes", "60"),
+					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.application_delta_health_policy.#", "1"),
+					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.application_delta_health_policy.0.application_type", "fabric:/System"),
+					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.application_delta_health_policy.0.default_service_type_delta_health_policy.#", "1"),
+					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.application_delta_health_policy.0.default_service_type_delta_health_policy.0.max_percent_delta_unhealthy_services", "5"),
 				),
 			},
 			data.ImportStep(),
@@ -1410,6 +1421,19 @@ resource "azurerm_service_fabric_cluster" "test" {
     health_policy {
         max_percent_unhealthy_nodes = 5
         max_percent_unhealthy_applications = 40
+    }
+
+    delta_health_policy {
+      max_percent_delta_unhealthy_applications         = 20
+      max_percent_delta_unhealthy_nodes                = 40
+      max_percent_upgrade_domain_delta_unhealthy_nodes = 60
+
+      application_delta_health_policy {
+        application_type = "fabric:/System"
+        default_service_type_delta_health_policy {
+            max_percent_delta_unhealthy_services = 5
+        }
+      }
     }
   }
 
