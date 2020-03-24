@@ -1420,7 +1420,7 @@ resource "azurerm_service_fabric_cluster" "test" {
     protected_account_key_name = "StorageAccountKey1"
     blob_endpoint              = azurerm_storage_account.test.primary_blob_endpoint
     queue_endpoint             = azurerm_storage_account.test.primary_queue_endpoint
-	table_endpoint             = azurerm_storage_account.test.primary_table_endpoint
+    table_endpoint             = azurerm_storage_account.test.primary_table_endpoint
   }
 
   upgrade_description {
@@ -1432,8 +1432,8 @@ resource "azurerm_service_fabric_cluster" "test" {
     upgrade_replica_set_check_timeout = "00:00:10"
     upgrade_timeout                   = "00:00:40"
     health_policy {
-        max_percent_unhealthy_nodes        = 5
-        max_percent_unhealthy_applications = 40
+      max_percent_unhealthy_nodes        = 5
+      max_percent_unhealthy_applications = 40
     }
 
     delta_health_policy {
@@ -1445,17 +1445,17 @@ resource "azurerm_service_fabric_cluster" "test" {
         application_type = "fabric:/sampleapplication"
 
         default_service_type_delta_health_policy {
-            max_percent_delta_unhealthy_services = 5
+          max_percent_delta_unhealthy_services = 5
         }
 
         service_type_delta_health_policy {
-            service_type                         = "fabric:/sampleapplication/service"
-            max_percent_delta_unhealthy_services = 30
+          service_type                         = "fabric:/sampleapplication/service"
+          max_percent_delta_unhealthy_services = 30
         }
 
         service_type_delta_health_policy {
-            service_type                         = "fabric:/sampleapplication/service2"
-            max_percent_delta_unhealthy_services = 60
+          service_type                         = "fabric:/sampleapplication/service2"
+          max_percent_delta_unhealthy_services = 60
         }
       }
 
@@ -1463,17 +1463,17 @@ resource "azurerm_service_fabric_cluster" "test" {
         application_type = "fabric:/sampleapplication2"
 
         default_service_type_delta_health_policy {
-            max_percent_delta_unhealthy_services = 10
+          max_percent_delta_unhealthy_services = 10
         }
 
         service_type_delta_health_policy {
-            service_type                         = "fabric:/sampleapplication2/service"
-            max_percent_delta_unhealthy_services = 15
+          service_type                         = "fabric:/sampleapplication2/service"
+          max_percent_delta_unhealthy_services = 15
         }
 
         service_type_delta_health_policy {
-            service_type                         = "fabric:/sampleapplication2/service2"
-            max_percent_delta_unhealthy_services = 90
+          service_type                         = "fabric:/sampleapplication2/service2"
+          max_percent_delta_unhealthy_services = 90
         }
       }
 
