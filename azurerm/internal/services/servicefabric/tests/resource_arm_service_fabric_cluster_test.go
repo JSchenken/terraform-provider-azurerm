@@ -519,10 +519,23 @@ func TestAccAzureRMServiceFabricCluster_clusterUpgradeDescription(t *testing.T) 
 					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.max_percent_delta_unhealthy_applications", "20"),
 					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.max_percent_delta_unhealthy_nodes", "40"),
 					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.max_percent_upgrade_domain_delta_unhealthy_nodes", "60"),
-					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.application_delta_health_policy.#", "1"),
-					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.application_delta_health_policy.0.application_type", "fabric:/System"),
+					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.application_delta_health_policy.#", "2"),
+					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.application_delta_health_policy.0.application_type", "fabric:/sampleapplication"),
 					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.application_delta_health_policy.0.default_service_type_delta_health_policy.#", "1"),
 					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.application_delta_health_policy.0.default_service_type_delta_health_policy.0.max_percent_delta_unhealthy_services", "5"),
+					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.application_delta_health_policy.0.service_type_delta_health_policy.#", "2"),
+					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.application_delta_health_policy.0.service_type_delta_health_policy.0.service_type", "fabric:/sampleapplication/service"),
+					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.application_delta_health_policy.0.service_type_delta_health_policy.0.max_percent_delta_unhealthy_services", "30"),
+					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.application_delta_health_policy.0.service_type_delta_health_policy.1.service_type", "fabric:/sampleapplication/service2"),
+					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.application_delta_health_policy.0.service_type_delta_health_policy.1.max_percent_delta_unhealthy_services", "60"),
+					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.application_delta_health_policy.1.application_type", "fabric:/sampleapplication2"),
+					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.application_delta_health_policy.1.default_service_type_delta_health_policy.#", "1"),
+					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.application_delta_health_policy.1.default_service_type_delta_health_policy.0.max_percent_delta_unhealthy_services", "10"),
+					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.application_delta_health_policy.1.service_type_delta_health_policy.#", "2"),
+					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.application_delta_health_policy.1.service_type_delta_health_policy.0.service_type", "fabric:/sampleapplication2/service"),
+					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.application_delta_health_policy.1.service_type_delta_health_policy.0.max_percent_delta_unhealthy_services", "15"),
+					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.application_delta_health_policy.1.service_type_delta_health_policy.1.service_type", "fabric:/sampleapplication2/service2"),
+					resource.TestCheckResourceAttr(data.ResourceName, "upgrade_description.0.delta_health_policy.0.application_delta_health_policy.1.service_type_delta_health_policy.1.max_percent_delta_unhealthy_services", "90"),
 				),
 			},
 			data.ImportStep(),
@@ -1419,7 +1432,7 @@ resource "azurerm_service_fabric_cluster" "test" {
     upgrade_replica_set_check_timeout = "00:00:10"
     upgrade_timeout                   = "00:00:40"
     health_policy {
-        max_percent_unhealthy_nodes = 5
+        max_percent_unhealthy_nodes        = 5
         max_percent_unhealthy_applications = 40
     }
 
@@ -1429,11 +1442,41 @@ resource "azurerm_service_fabric_cluster" "test" {
       max_percent_upgrade_domain_delta_unhealthy_nodes = 60
 
       application_delta_health_policy {
-        application_type = "fabric:/System"
+        application_type = "fabric:/sampleapplication"
+
         default_service_type_delta_health_policy {
             max_percent_delta_unhealthy_services = 5
         }
+
+        service_type_delta_health_policy {
+            service_type                         = "fabric:/sampleapplication/service"
+            max_percent_delta_unhealthy_services = 30
+        }
+
+        service_type_delta_health_policy {
+            service_type                         = "fabric:/sampleapplication/service2"
+            max_percent_delta_unhealthy_services = 60
+        }
       }
+
+      application_delta_health_policy {
+        application_type = "fabric:/sampleapplication2"
+
+        default_service_type_delta_health_policy {
+            max_percent_delta_unhealthy_services = 10
+        }
+
+        service_type_delta_health_policy {
+            service_type                         = "fabric:/sampleapplication2/service"
+            max_percent_delta_unhealthy_services = 15
+        }
+
+        service_type_delta_health_policy {
+            service_type                         = "fabric:/sampleapplication2/service2"
+            max_percent_delta_unhealthy_services = 90
+        }
+      }
+
     }
   }
 

@@ -346,6 +346,10 @@ func resourceArmServiceFabricCluster() *schema.Resource {
 													Optional: true,
 													Elem: &schema.Resource{
 														Schema: map[string]*schema.Schema{
+															"service_type": {
+																Type:     schema.TypeString,
+																Required: true,
+															},
 															"max_percent_delta_unhealthy_services": {
 																Type:     schema.TypeInt,
 																Required: true,
@@ -990,17 +994,38 @@ func expandServiceFabricClusterUpgradeDescriptionDeltaHealthPolicy(input []inter
 
 			applicationType := appDeltaHealthPolicy["application_type"].(string)
 
+			outputDefaultServiceTypeDeltaHealthPolicy := &servicefabric.ServiceTypeDeltaHealthPolicy{}
 			if defaultServiceTypeDeltaHealthPolicyRaw := appDeltaHealthPolicy["default_service_type_delta_health_policy"]; defaultServiceTypeDeltaHealthPolicyRaw != nil {
 				defaultServiceTypeDeltaHealthPolicy := defaultServiceTypeDeltaHealthPolicyRaw.([]interface{})[0].(map[string]interface{})
 
 				maxPercentDeltaUnhealthyServices := int32(defaultServiceTypeDeltaHealthPolicy["max_percent_delta_unhealthy_services"].(int))
 
-				applicationDeltaHealthPolicies[applicationType] = &servicefabric.ApplicationDeltaHealthPolicy{
-					DefaultServiceTypeDeltaHealthPolicy: &servicefabric.ServiceTypeDeltaHealthPolicy{
+				outputDefaultServiceTypeDeltaHealthPolicy.MaxPercentDeltaUnhealthyServices = &maxPercentDeltaUnhealthyServices
+			}
+
+			outputServiceTypeDeltahealthPolicies := make(map[string]*servicefabric.ServiceTypeDeltaHealthPolicy)
+			if serviceTypeDeltaHealthPoliciesRaw := appDeltaHealthPolicy["service_type_delta_health_policy"]; serviceTypeDeltaHealthPoliciesRaw != nil {
+
+				serviceTypeDeltaHealthPoliciesArray := serviceTypeDeltaHealthPoliciesRaw.([]interface{})
+
+				for _, value := range serviceTypeDeltaHealthPoliciesArray {
+					serviceTypeDeltaHealthPolicy := value.(map[string]interface{})
+
+					serviceType := serviceTypeDeltaHealthPolicy["service_type"].(string)
+
+					maxPercentDeltaUnhealthyServices := int32(serviceTypeDeltaHealthPolicy["max_percent_delta_unhealthy_services"].(int))
+
+					outputServiceTypeDeltahealthPolicies[serviceType] = &servicefabric.ServiceTypeDeltaHealthPolicy{
 						MaxPercentDeltaUnhealthyServices: &maxPercentDeltaUnhealthyServices,
-					},
+					}
 				}
 			}
+
+			applicationDeltaHealthPolicies[applicationType] = &servicefabric.ApplicationDeltaHealthPolicy{
+				DefaultServiceTypeDeltaHealthPolicy: outputDefaultServiceTypeDeltaHealthPolicy,
+				ServiceTypeDeltaHealthPolicies:      outputServiceTypeDeltahealthPolicies,
+			}
+
 		}
 
 		deltaHealthPolicy.ApplicationDeltaHealthPolicies = applicationDeltaHealthPolicies
@@ -1139,11 +1164,25 @@ func flattenServiceFabricClusterUpgradeDescription(input *servicefabric.ClusterU
 
 					output["application_type"] = k
 
-					if v.DefaultServiceTypeDeltaHealthPolicy != nil {
-						outputDefaultServiceTypeDeltaHealthPolicy := make(map[string]interface{})
+					if defaultServiceTypeDeltaHealthPolicy := v.DefaultServiceTypeDeltaHealthPolicy; defaultServiceTypeDeltaHealthPolicy != nil {
+						defaultServiceTypeDeltaHealthPolicyOutput := make(map[string]interface{})
 
-						outputDefaultServiceTypeDeltaHealthPolicy["max_percent_delta_unhealthy_services"] = v.DefaultServiceTypeDeltaHealthPolicy.MaxPercentDeltaUnhealthyServices
-						output["default_service_type_delta_health_policy"] = []interface{}{outputDefaultServiceTypeDeltaHealthPolicy}
+						defaultServiceTypeDeltaHealthPolicyOutput["max_percent_delta_unhealthy_services"] = defaultServiceTypeDeltaHealthPolicy.MaxPercentDeltaUnhealthyServices
+						output["default_service_type_delta_health_policy"] = []interface{}{defaultServiceTypeDeltaHealthPolicyOutput}
+					}
+
+					if serviceTypeDeltaHealthPolicies := v.ServiceTypeDeltaHealthPolicies; serviceTypeDeltaHealthPolicies != nil {
+						serviceTypeDeltaHealthPoliciesOutput := make([]map[string]interface{}, 0)
+
+						for k, v := range serviceTypeDeltaHealthPolicies {
+							serviceTypeDeltaHealthPolicyOutput := make(map[string]interface{})
+							serviceTypeDeltaHealthPolicyOutput["service_type"] = k
+							serviceTypeDeltaHealthPolicyOutput["max_percent_delta_unhealthy_services"] = v.MaxPercentDeltaUnhealthyServices
+
+							serviceTypeDeltaHealthPoliciesOutput = append(serviceTypeDeltaHealthPoliciesOutput, serviceTypeDeltaHealthPolicyOutput)
+						}
+
+						output["service_type_delta_health_policy"] = serviceTypeDeltaHealthPoliciesOutput
 					}
 
 					applicationDeltaHealthPoliciesResults = append(applicationDeltaHealthPoliciesResults, output)
