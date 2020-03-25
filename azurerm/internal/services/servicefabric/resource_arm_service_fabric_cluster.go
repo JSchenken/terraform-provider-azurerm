@@ -967,6 +967,64 @@ func flattenServiceFabricClusterClientCertificateThumbprints(input *[]servicefab
 	return results
 }
 
+func expandDefaultServiceTypeDeltaHealthPolicy(input []interface{}) *servicefabric.ServiceTypeDeltaHealthPolicy {
+	if len(input) == 0 {
+		return nil
+	}
+
+	outputDefaultServiceTypeDeltaHealthPolicy := &servicefabric.ServiceTypeDeltaHealthPolicy{}
+	defaultServiceTypeDeltaHealthPolicy := input[0].(map[string]interface{})
+
+	maxPercentDeltaUnhealthyServices := int32(defaultServiceTypeDeltaHealthPolicy["max_percent_delta_unhealthy_services"].(int))
+	outputDefaultServiceTypeDeltaHealthPolicy.MaxPercentDeltaUnhealthyServices = &maxPercentDeltaUnhealthyServices
+
+	return outputDefaultServiceTypeDeltaHealthPolicy
+}
+
+func expandserviceTypeDeltaHealthPolicies(input []interface{}) map[string]*servicefabric.ServiceTypeDeltaHealthPolicy {
+	if len(input) == 0 {
+		return nil
+	}
+
+	outputServiceTypeDeltahealthPolicies := make(map[string]*servicefabric.ServiceTypeDeltaHealthPolicy)
+
+	for _, value := range input {
+		serviceTypeDeltaHealthPolicy := value.(map[string]interface{})
+
+		serviceType := serviceTypeDeltaHealthPolicy["service_type"].(string)
+
+		maxPercentDeltaUnhealthyServices := int32(serviceTypeDeltaHealthPolicy["max_percent_delta_unhealthy_services"].(int))
+
+		outputServiceTypeDeltahealthPolicies[serviceType] = &servicefabric.ServiceTypeDeltaHealthPolicy{
+			MaxPercentDeltaUnhealthyServices: &maxPercentDeltaUnhealthyServices,
+		}
+	}
+
+	return outputServiceTypeDeltahealthPolicies
+}
+
+func expandApplicationDeltaHealthPolicies(input []interface{}) map[string]*servicefabric.ApplicationDeltaHealthPolicy {
+	if len(input) == 0 {
+		return nil
+	}
+
+	applicationDeltaHealthPolicies := make(map[string]*servicefabric.ApplicationDeltaHealthPolicy)
+
+	for _, value := range input {
+		appDeltaHealthPolicy := value.(map[string]interface{})
+
+		applicationType := appDeltaHealthPolicy["application_type"].(string)
+
+		applicationDeltaHealthPolicies[applicationType] = &servicefabric.ApplicationDeltaHealthPolicy{
+			DefaultServiceTypeDeltaHealthPolicy: expandDefaultServiceTypeDeltaHealthPolicy(appDeltaHealthPolicy["default_service_type_delta_health_policy"].([]interface{})),
+			ServiceTypeDeltaHealthPolicies:      expandserviceTypeDeltaHealthPolicies(appDeltaHealthPolicy["service_type_delta_health_policy"].([]interface{})),
+		}
+
+	}
+
+	return applicationDeltaHealthPolicies
+}
+
 func expandServiceFabricClusterUpgradeDescriptionDeltaHealthPolicy(input []interface{}) *servicefabric.ClusterUpgradeDeltaHealthPolicy {
 	if len(input) == 0 {
 		return nil
@@ -984,52 +1042,7 @@ func expandServiceFabricClusterUpgradeDescriptionDeltaHealthPolicy(input []inter
 		MaxPercentDeltaUnhealthyApplications:       &maxPercentDeltaUnhealthyApplications,
 	}
 
-	if applicationDeltaHealthPoliciesRaw := v["application_delta_health_policy"]; applicationDeltaHealthPoliciesRaw != nil {
-		applicationDeltaHealthPolicies := make(map[string]*servicefabric.ApplicationDeltaHealthPolicy)
-
-		applicationDeltaHealthPoliciesArray := applicationDeltaHealthPoliciesRaw.([]interface{})
-
-		for _, value := range applicationDeltaHealthPoliciesArray {
-			appDeltaHealthPolicy := value.(map[string]interface{})
-
-			applicationType := appDeltaHealthPolicy["application_type"].(string)
-
-			outputDefaultServiceTypeDeltaHealthPolicy := &servicefabric.ServiceTypeDeltaHealthPolicy{}
-			if defaultServiceTypeDeltaHealthPolicyRaw := appDeltaHealthPolicy["default_service_type_delta_health_policy"]; defaultServiceTypeDeltaHealthPolicyRaw != nil {
-				defaultServiceTypeDeltaHealthPolicy := defaultServiceTypeDeltaHealthPolicyRaw.([]interface{})[0].(map[string]interface{})
-
-				maxPercentDeltaUnhealthyServices := int32(defaultServiceTypeDeltaHealthPolicy["max_percent_delta_unhealthy_services"].(int))
-
-				outputDefaultServiceTypeDeltaHealthPolicy.MaxPercentDeltaUnhealthyServices = &maxPercentDeltaUnhealthyServices
-			}
-
-			outputServiceTypeDeltahealthPolicies := make(map[string]*servicefabric.ServiceTypeDeltaHealthPolicy)
-			if serviceTypeDeltaHealthPoliciesRaw := appDeltaHealthPolicy["service_type_delta_health_policy"]; serviceTypeDeltaHealthPoliciesRaw != nil {
-
-				serviceTypeDeltaHealthPoliciesArray := serviceTypeDeltaHealthPoliciesRaw.([]interface{})
-
-				for _, value := range serviceTypeDeltaHealthPoliciesArray {
-					serviceTypeDeltaHealthPolicy := value.(map[string]interface{})
-
-					serviceType := serviceTypeDeltaHealthPolicy["service_type"].(string)
-
-					maxPercentDeltaUnhealthyServices := int32(serviceTypeDeltaHealthPolicy["max_percent_delta_unhealthy_services"].(int))
-
-					outputServiceTypeDeltahealthPolicies[serviceType] = &servicefabric.ServiceTypeDeltaHealthPolicy{
-						MaxPercentDeltaUnhealthyServices: &maxPercentDeltaUnhealthyServices,
-					}
-				}
-			}
-
-			applicationDeltaHealthPolicies[applicationType] = &servicefabric.ApplicationDeltaHealthPolicy{
-				DefaultServiceTypeDeltaHealthPolicy: outputDefaultServiceTypeDeltaHealthPolicy,
-				ServiceTypeDeltaHealthPolicies:      outputServiceTypeDeltahealthPolicies,
-			}
-
-		}
-
-		deltaHealthPolicy.ApplicationDeltaHealthPolicies = applicationDeltaHealthPolicies
-	}
+	deltaHealthPolicy.ApplicationDeltaHealthPolicies = expandApplicationDeltaHealthPolicies(v["application_delta_health_policy"].([]interface{}))
 
 	return &deltaHealthPolicy
 }
